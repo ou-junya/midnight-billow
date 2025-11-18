@@ -32,6 +32,7 @@ import { type Observable } from 'rxjs';
 const App: React.FC = () => {
   const invoiceApiProvider = useDeployedInvoiceContext();
   const [invoiceDeployments, setInvoiceDeployments] = useState<Array<Observable<InvoiceDeployment>>>([]);
+  const [isIssueFormVisible, setIsIssueFormVisible] = useState(false);
 
   useEffect(() => {
     const subscription = invoiceApiProvider.invoiceDeployments$.subscribe(setInvoiceDeployments);
@@ -279,12 +280,17 @@ const App: React.FC = () => {
         <MainLayout>
           {invoiceDeployments.map((invoiceDeployment, idx) => (
             <div data-testid={`invoice-${idx}`} key={`invoice-${idx}`}>
-              <InvoiceBoard invoiceDeployment$={invoiceDeployment} />
+              <InvoiceBoard 
+                invoiceDeployment$={invoiceDeployment}
+                onIssueFormChange={setIsIssueFormVisible}
+              />
             </div>
           ))}
-          <div data-testid="invoice-start">
-            <InvoiceBoard />
-          </div>
+          {!isIssueFormVisible && (
+            <div data-testid="invoice-start">
+              <InvoiceBoard />
+            </div>
+          )}
         </MainLayout>
       </Box>
     </Box>

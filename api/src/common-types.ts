@@ -88,6 +88,18 @@ export type InvoiceData = {
 };
 
 /**
+ * Transaction history entry
+ */
+export type TransactionHistoryEntry = {
+  readonly type: 'issue' | 'payment' | 'reset';
+  readonly txHash: string;
+  readonly blockHeight: number;
+  readonly timestamp: Date;
+  readonly amount?: bigint;
+  readonly invoiceData?: InvoiceData;
+};
+
+/**
  * A type that represents the derived combination of public (or ledger), and private state.
  */
 export type InvoiceDerivedState = {
@@ -95,6 +107,7 @@ export type InvoiceDerivedState = {
   readonly sequence: bigint;
   readonly amount: bigint;
   readonly invoiceData: InvoiceData | undefined;
+  readonly transactionHistory: TransactionHistoryEntry[];
 
   /**
    * A readonly flag that determines if the current user can pay this invoice.

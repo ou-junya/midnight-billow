@@ -227,12 +227,16 @@ const initializeProviders = async (logger: Logger): Promise<InvoiceProviders> =>
 
   console.log(`Connecting to wallet with network ID: ${getLedgerNetworkId()}`);
 
+  // Use local proof server instead of remote one to avoid 413 Content Too Large error
+  const localProofServerUri = 'http://127.0.0.1:6300';
+  console.log(`Using local proof server: ${localProofServerUri} (instead of ${uris.proverServerUri})`);
+
   return {
     privateStateProvider: levelPrivateStateProvider({
       privateStateStoreName: 'invoice-private-state',
     }),
     zkConfigProvider: new FetchZkConfigProvider<InvoiceCircuitKeys>(zkConfigPath, fetch.bind(window)),
-    proofProvider: httpClientProofProvider(uris.proverServerUri),
+    proofProvider: httpClientProofProvider(localProofServerUri),
     publicDataProvider: indexerPublicDataProvider(uris.indexerUri, uris.indexerWsUri),
     walletProvider: {
       coinPublicKey: walletState.coinPublicKey,

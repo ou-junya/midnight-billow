@@ -86,7 +86,7 @@ export class InvoiceAPI implements DeployedInvoiceAPI {
           try {
             invoiceData = JSON.parse(ledgerState.invoiceJson.value) as InvoiceData;
           } catch (e) {
-            logger?.error('Failed to parse invoice JSON', e);
+            logger?.error({ error: e }, 'Failed to parse invoice JSON');
           }
         }
 
@@ -122,15 +122,24 @@ export class InvoiceAPI implements DeployedInvoiceAPI {
     this.logger?.info(`issuingInvoice: amount=${amount}, data=${JSON.stringify(invoiceData)}`);
 
     const invoiceJson = JSON.stringify(invoiceData);
-    const txData = await this.deployedContract.callTx.issueInvoice(amount, invoiceJson);
+    
+    try {
+      const txData = await this.deployedContract.callTx.issueInvoice(amount, invoiceJson);
 
-    this.logger?.trace({
-      transactionAdded: {
-        circuit: 'issueInvoice',
-        txHash: txData.public.txHash,
-        blockHeight: txData.public.blockHeight,
-      },
-    });
+      this.logger?.trace({
+        transactionAdded: {
+          circuit: 'issueInvoice',
+          txHash: txData.public.txHash,
+          blockHeight: txData.public.blockHeight,
+        },
+      });
+      
+      // Wait for transaction to be finalized
+      await txData.public;
+    } catch (error) {
+      this.logger?.error({ error }, 'Failed to issue invoice');
+      throw error;
+    }
   }
 
   /**
@@ -139,15 +148,23 @@ export class InvoiceAPI implements DeployedInvoiceAPI {
   async payInvoice(): Promise<void> {
     this.logger?.info('payingInvoice');
 
-    const txData = await this.deployedContract.callTx.payInvoice();
+    try {
+      const txData = await this.deployedContract.callTx.payInvoice();
 
-    this.logger?.trace({
-      transactionAdded: {
-        circuit: 'payInvoice',
-        txHash: txData.public.txHash,
-        blockHeight: txData.public.blockHeight,
-      },
-    });
+      this.logger?.trace({
+        transactionAdded: {
+          circuit: 'payInvoice',
+          txHash: txData.public.txHash,
+          blockHeight: txData.public.blockHeight,
+        },
+      });
+      
+      // Wait for transaction to be finalized
+      await txData.public;
+    } catch (error) {
+      this.logger?.error({ error }, 'Failed to pay invoice');
+      throw error;
+    }
   }
 
   /**
@@ -156,15 +173,23 @@ export class InvoiceAPI implements DeployedInvoiceAPI {
   async resetInvoice(): Promise<void> {
     this.logger?.info('resettingInvoice');
 
-    const txData = await this.deployedContract.callTx.resetInvoice();
+    try {
+      const txData = await this.deployedContract.callTx.resetInvoice();
 
-    this.logger?.trace({
-      transactionAdded: {
-        circuit: 'resetInvoice',
-        txHash: txData.public.txHash,
-        blockHeight: txData.public.blockHeight,
-      },
-    });
+      this.logger?.trace({
+        transactionAdded: {
+          circuit: 'resetInvoice',
+          txHash: txData.public.txHash,
+          blockHeight: txData.public.blockHeight,
+        },
+      });
+      
+      // Wait for transaction to be finalized
+      await txData.public;
+    } catch (error) {
+      this.logger?.error({ error }, 'Failed to reset invoice');
+      throw error;
+    }
   }
 
   /**

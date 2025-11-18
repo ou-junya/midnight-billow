@@ -19,6 +19,7 @@ import {
   type InvoiceProviders,
   type DeployedInvoiceContract,
   type InvoiceData,
+  type TransactionHistoryEntry,
   invoicePrivateStateKey,
 } from './common-types.js';
 import { type InvoicePrivateState, createInvoicePrivateState, witnesses } from '../../contract/src/index';
@@ -37,15 +38,18 @@ export interface DeployedInvoiceAPI {
   readonly deployedContractAddress: ContractAddress;
   readonly state$: Observable<InvoiceDerivedState>;
 
-  issueInvoice: (amount: bigint, invoiceData: InvoiceData) => Promise<void>;
-  payInvoice: () => Promise<void>;
-  resetInvoice: () => Promise<void>;
+  issueInvoice: (amount: bigint, invoiceData: InvoiceData) => Promise<string>;
+  payInvoice: () => Promise<string>;
+  resetInvoice: () => Promise<string>;
 }
 
 /**
  * Provides an implementation of {@link DeployedInvoiceAPI} by adapting a deployed invoice contract.
  */
 export class InvoiceAPI implements DeployedInvoiceAPI {
+  /** @internal */
+  private transactionHistory: TransactionHistoryEntry[] = [];
+
   /** @internal */
   private constructor(
     public readonly deployedContract: DeployedInvoiceContract,
@@ -96,6 +100,7 @@ export class InvoiceAPI implements DeployedInvoiceAPI {
           amount: ledgerState.amount,
           invoiceData,
           canPay: toHex(ledgerState.buyerPk) === toHex(hashedSecretKey),
+          transactionHistory: [...this.transactionHistory],
         };
       },
     );
@@ -117,54 +122,114 @@ export class InvoiceAPI implements DeployedInvoiceAPI {
    *
    * @param amount The amount to invoice.
    * @param invoiceData The invoice metadata.
+   * @returns The transaction hash
    */
-  async issueInvoice(amount: bigint, invoiceData: InvoiceData): Promise<void> {
+  async issueInvoice(amount: bigint, invoiceData: InvoiceData): Promise<string> {
     this.logger?.info(`issuingInvoice: amount=${amount}, data=${JSON.stringify(invoiceData)}`);
 
     const invoiceJson = JSON.stringify(invoiceData);
-    const txData = await this.deployedContract.callTx.issueInvoice(amount, invoiceJson);
+    
+    try {
+      const txData = await this.deployedContract.callTx.issueInvoice(amount, invoiceJson);
 
-    this.logger?.trace({
-      transactionAdded: {
-        circuit: 'issueInvoice',
-        txHash: txData.public.txHash,
-        blockHeight: txData.public.blockHeight,
-      },
-    });
+      this.logger?.trace({
+        transactionAdded: {
+          circuit: 'issueInvoice',
+          txHash: txData.public.txHash,
+          blockHeight: txData.public.blockHeight,
+        },
+      });
+      
+      // Wait for transaction to be finalized
+      const finalizedTx = await txData.public;
+
+      // Record transaction history
+      this.transactionHistory.push({
+        type: 'issue',
+        txHash: finalizedTx.txHash,
+        blockHeight: finalizedTx.blockHeight,
+        timestamp: new Date(),
+        amount,
+        invoiceData,
+      });
+
+      return finalizedTx.txHash;
+    } catch (error) {
+      this.logger?.error({ error }, 'Failed to issue invoice');
+      throw error;
+    }
   }
 
   /**
    * Pays the currently issued invoice using ZK proof.
+   * @returns The transaction hash
    */
-  async payInvoice(): Promise<void> {
+  async payInvoice(): Promise<string> {
     this.logger?.info('payingInvoice');
 
-    const txData = await this.deployedContract.callTx.payInvoice();
+    try {
+      const txData = await this.deployedContract.callTx.payInvoice();
 
-    this.logger?.trace({
-      transactionAdded: {
-        circuit: 'payInvoice',
-        txHash: txData.public.txHash,
-        blockHeight: txData.public.blockHeight,
-      },
-    });
+      this.logger?.trace({
+        transactionAdded: {
+          circuit: 'payInvoice',
+          txHash: txData.public.txHash,
+          blockHeight: txData.public.blockHeight,
+        },
+      });
+      
+      // Wait for transaction to be finalized
+      const finalizedTx = await txData.public;
+
+      // Record transaction history
+      this.transactionHistory.push({
+        type: 'payment',
+        txHash: finalizedTx.txHash,
+        blockHeight: finalizedTx.blockHeight,
+        timestamp: new Date(),
+      });
+
+      return finalizedTx.txHash;
+    } catch (error) {
+      this.logger?.error({ error }, 'Failed to pay invoice');
+      throw error;
+    }
   }
 
   /**
    * Resets a paid invoice to allow a new invoice to be issued.
+   * @returns The transaction hash
    */
-  async resetInvoice(): Promise<void> {
+  async resetInvoice(): Promise<string> {
     this.logger?.info('resettingInvoice');
 
-    const txData = await this.deployedContract.callTx.resetInvoice();
+    try {
+      const txData = await this.deployedContract.callTx.resetInvoice();
 
-    this.logger?.trace({
-      transactionAdded: {
-        circuit: 'resetInvoice',
-        txHash: txData.public.txHash,
-        blockHeight: txData.public.blockHeight,
-      },
-    });
+      this.logger?.trace({
+        transactionAdded: {
+          circuit: 'resetInvoice',
+          txHash: txData.public.txHash,
+          blockHeight: txData.public.blockHeight,
+        },
+      });
+      
+      // Wait for transaction to be finalized
+      const finalizedTx = await txData.public;
+
+      // Record transaction history
+      this.transactionHistory.push({
+        type: 'reset',
+        txHash: finalizedTx.txHash,
+        blockHeight: finalizedTx.blockHeight,
+        timestamp: new Date(),
+      });
+
+      return finalizedTx.txHash;
+    } catch (error) {
+      this.logger?.error({ error }, 'Failed to reset invoice');
+      throw error;
+    }
   }
 
   /**

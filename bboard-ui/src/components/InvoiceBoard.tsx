@@ -24,6 +24,13 @@ import {
   Fade,
   Paper,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Collapse,
 } from '@mui/material';
 import PaymentIcon from '@mui/icons-material/Payment';
 import ReceiptIcon from '@mui/icons-material/Receipt';
@@ -33,6 +40,9 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import CloseIcon from '@mui/icons-material/Close';
+import HistoryIcon from '@mui/icons-material/History';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import { type InvoiceDerivedState, type DeployedInvoiceAPI, type InvoiceData } from '../../../api/src/index';
 import { useDeployedInvoiceContext } from '../hooks';
 import { type InvoiceDeployment } from '../contexts';
@@ -44,12 +54,20 @@ import { EmptyCardContent } from './Board.EmptyCardContent';
 export interface InvoiceBoardProps {
   /** The observable invoice deployment. */
   invoiceDeployment$?: Observable<InvoiceDeployment>;
+  /** Whether to hide the create/join buttons (when in issue form mode) */
+  hideEmptyState?: boolean;
+  /** Callback when issue form visibility changes */
+  onIssueFormChange?: (isVisible: boolean) => void;
 }
 
 /**
  * Provides the UI for a deployed invoice contract.
  */
-export const InvoiceBoard: React.FC<Readonly<InvoiceBoardProps>> = ({ invoiceDeployment$ }) => {
+export const InvoiceBoard: React.FC<Readonly<InvoiceBoardProps>> = ({ 
+  invoiceDeployment$, 
+  hideEmptyState = false,
+  onIssueFormChange,
+}) => {
   const invoiceApiProvider = useDeployedInvoiceContext();
   const [invoiceDeployment, setInvoiceDeployment] = useState<InvoiceDeployment>();
   const [deployedInvoiceAPI, setDeployedInvoiceAPI] = useState<DeployedInvoiceAPI>();
@@ -57,6 +75,8 @@ export const InvoiceBoard: React.FC<Readonly<InvoiceBoardProps>> = ({ invoiceDep
   const [invoiceState, setInvoiceState] = useState<InvoiceDerivedState>();
   const [isWorking, setIsWorking] = useState(!!invoiceDeployment$);
   const [showIssueForm, setShowIssueForm] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [lastTxHash, setLastTxHash] = useState<string>();
 
   // Invoice form fields
   const [title, setTitle] = useState('');
@@ -118,7 +138,8 @@ export const InvoiceBoard: React.FC<Readonly<InvoiceBoardProps>> = ({ invoiceDep
         issuedAt: new Date().toISOString().split('T')[0],
         currency,
       };
-      await deployedInvoiceAPI.issueInvoice(BigInt(amount), invoiceData);
+      const txHash = await deployedInvoiceAPI.issueInvoice(BigInt(amount), invoiceData);
+      setLastTxHash(txHash);
       setShowIssueForm(false);
       setTitle('');
       setDescription('');
@@ -139,7 +160,8 @@ export const InvoiceBoard: React.FC<Readonly<InvoiceBoardProps>> = ({ invoiceDep
 
     try {
       setIsWorking(true);
-      await deployedInvoiceAPI.payInvoice();
+      const txHash = await deployedInvoiceAPI.payInvoice();
+      setLastTxHash(txHash);
     } catch (error: unknown) {
       setErrorMessage(error instanceof Error ? error.message : String(error));
     } finally {
@@ -154,7 +176,8 @@ export const InvoiceBoard: React.FC<Readonly<InvoiceBoardProps>> = ({ invoiceDep
 
     try {
       setIsWorking(true);
-      await deployedInvoiceAPI.resetInvoice();
+      const txHash = await deployedInvoiceAPI.resetInvoice();
+      setLastTxHash(txHash);
     } catch (error: unknown) {
       setErrorMessage(error instanceof Error ? error.message : String(error));
     } finally {
@@ -194,7 +217,11 @@ export const InvoiceBoard: React.FC<Readonly<InvoiceBoardProps>> = ({ invoiceDep
     return () => subscription.unsubscribe();
   }, [deployedInvoiceAPI]);
 
-  if (!invoiceDeployment$) {
+  useEffect(() => {
+    onIssueFormChange?.(showIssueForm);
+  }, [showIssueForm, onIssueFormChange]);
+
+  if (!invoiceDeployment$ && !hideEmptyState) {
     return (
       <EmptyCardContent
         contractAddress={deployedInvoiceAPI?.deployedContractAddress}
@@ -202,6 +229,10 @@ export const InvoiceBoard: React.FC<Readonly<InvoiceBoardProps>> = ({ invoiceDep
         onJoin={onJoin}
       />
     );
+  }
+
+  if (!invoiceDeployment$ && hideEmptyState) {
+    return null;
   }
 
   if (isWorking || !invoiceState) {
@@ -246,6 +277,19 @@ export const InvoiceBoard: React.FC<Readonly<InvoiceBoardProps>> = ({ invoiceDep
     }
   };
 
+  const getTransactionTypeLabel = (type: string) => {
+    switch (type) {
+      case 'issue':
+        return 'Invoice Issued';
+      case 'payment':
+        return 'Payment';
+      case 'reset':
+        return 'Reset';
+      default:
+        return type;
+    }
+  };
+
   return (
     <>
       <Backdrop open={isWorking} sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
@@ -260,6 +304,71 @@ export const InvoiceBoard: React.FC<Readonly<InvoiceBoardProps>> = ({ invoiceDep
           action={<Chip label={getStateLabel()} color={getStateColor()} />}
         />
         <CardContent>
+          {/* Display last transaction hash if available */}
+          {lastTxHash && (
+            <Fade in timeout={300}>
+              <Alert severity="success" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setLastTxHash(undefined)}>
+                <Typography variant="body2" fontWeight={600} sx={{ color: 'black' }}>
+                  Transaction Successful
+                </Typography>
+                <Typography variant="caption" sx={{ wordBreak: 'break-all', color: 'black' }}>
+                  TX Hash: {lastTxHash}
+                </Typography>
+              </Alert>
+            </Fade>
+          )}
+
+          {/* Transaction History Section */}
+          {invoiceState && invoiceState.transactionHistory.length > 0 && (
+            <Box sx={{ mb: 3 }}>
+              <Button
+                variant="outlined"
+                startIcon={showHistory ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                endIcon={<HistoryIcon />}
+                onClick={() => setShowHistory(!showHistory)}
+                fullWidth
+                sx={{ borderRadius: 2, textTransform: 'none', mb: 2 }}
+              >
+                Transaction History ({invoiceState.transactionHistory.length})
+              </Button>
+              <Collapse in={showHistory}>
+                <TableContainer component={Paper} elevation={2} sx={{ borderRadius: 2 }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: 'primary.main' }}>
+                        <TableCell sx={{ color: 'white', fontWeight: 600 }}>Type</TableCell>
+                        <TableCell sx={{ color: 'white', fontWeight: 600 }}>TX Hash</TableCell>
+                        <TableCell sx={{ color: 'white', fontWeight: 600 }}>Block</TableCell>
+                        <TableCell sx={{ color: 'white', fontWeight: 600 }}>Time</TableCell>
+                        <TableCell sx={{ color: 'white', fontWeight: 600 }}>Amount</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {invoiceState.transactionHistory.slice().reverse().map((tx, index) => (
+                        <TableRow key={index} sx={{ '&:hover': { bgcolor: 'action.hover' } }}>
+                          <TableCell>
+                            <Chip
+                              label={getTransactionTypeLabel(tx.type)}
+                              size="small"
+                              color={tx.type === 'payment' ? 'success' : tx.type === 'issue' ? 'primary' : 'default'}
+                            />
+                          </TableCell>
+                          <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                            {tx.txHash.slice(0, 10)}...{tx.txHash.slice(-8)}
+                          </TableCell>
+                          <TableCell>{tx.blockHeight}</TableCell>
+                          <TableCell>{new Date(tx.timestamp).toLocaleString()}</TableCell>
+                          <TableCell>
+                            {tx.amount ? `${tx.amount.toString()} ${tx.invoiceData?.currency || 'NIGHT'}` : '-'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Collapse>
+            </Box>
+          )}
           {invoiceState.state === State.EMPTY && !showIssueForm && (
             <Fade in timeout={500}>
               <Box sx={{ textAlign: 'center', py: 6 }}>
@@ -298,7 +407,7 @@ export const InvoiceBoard: React.FC<Readonly<InvoiceBoardProps>> = ({ invoiceDep
 
           {invoiceState.state === State.EMPTY && showIssueForm && (
             <Fade in timeout={500}>
-              <Paper elevation={0} sx={{ p: 3, bgcolor: 'background.default', borderRadius: 2 }}>
+              <Paper elevation={0} sx={{ p: 3, bgcolor: '#ffffff', borderRadius: 2 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                   <Typography variant="h5" fontWeight={600} color="primary">
                     Create Invoice
