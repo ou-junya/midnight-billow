@@ -1,4 +1,4 @@
-// This file is part of midnightntwrk/example-counter.
+// This file is part of Midnight Billow - ZK Invoice Payment System
 // Copyright (C) 2025 Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,4 +14,4 @@
 // limitations under the License.
 
 export * from './Layout';
-export * from './Board';
+export * from './InvoiceBoard';

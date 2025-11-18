@@ -15,10 +15,12 @@
 
 import React, { useState } from 'react';
 import { type ContractAddress } from '@midnight-ntwrk/compact-runtime';
-import { CardActions, CardContent, IconButton, Tooltip, Typography } from '@mui/material';
+import { CardActions, CardContent, IconButton, Tooltip, Typography, Button, Box, Stack } from '@mui/material';
 import BoardAddIcon from '@mui/icons-material/PostAddOutlined';
 import CreateBoardIcon from '@mui/icons-material/AddCircleOutlined';
 import JoinBoardIcon from '@mui/icons-material/AddLinkOutlined';
+import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import { TextPromptDialog } from './TextPromptDialog';
 
 /**
@@ -27,50 +29,110 @@ import { TextPromptDialog } from './TextPromptDialog';
  * @internal
  */
 export interface EmptyCardContentProps {
-  /** A callback that will be called to create a new bulletin board. */
-  onCreateBoardCallback: () => void;
-  /** A callback that will be called to join an existing bulletin board. */
-  onJoinBoardCallback: (contractAddress: ContractAddress) => void;
+  /** The contract address, if available. */
+  contractAddress?: ContractAddress;
+  /** A callback that will be called to create a new invoice contract. */
+  onCreate: () => void;
+  /** A callback that will be called to join an existing invoice contract. */
+  onJoin: (contractAddress: ContractAddress) => void;
 }
 
 /**
- * Used when there is no board deployment to render a UI allowing the user to join or deploy bulletin boards.
+ * Used when there is no invoice deployment to render a UI allowing the user to join or deploy invoice contracts.
  *
  * @internal
  */
 export const EmptyCardContent: React.FC<Readonly<EmptyCardContentProps>> = ({
-  onCreateBoardCallback,
-  onJoinBoardCallback,
+  contractAddress,
+  onCreate,
+  onJoin,
 }) => {
   const [textPromptOpen, setTextPromptOpen] = useState(false);
 
   return (
     <React.Fragment>
       <CardContent>
-        <Typography align="center" variant="h1" color="primary.dark">
-          <BoardAddIcon fontSize="large" />
-        </Typography>
-        <Typography data-testid="board-posted-message" align="center" variant="body2" color="primary.dark">
-          Create a new Board, or join an existing one...
-        </Typography>
-      </CardContent>
-      <CardActions disableSpacing sx={{ justifyContent: 'center' }}>
-        <Tooltip title="Create a new board">
-          <IconButton data-testid="board-deploy-btn" onClick={onCreateBoardCallback}>
-            <CreateBoardIcon />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="Join an existing board">
-          <IconButton
-            data-testid="board-join-btn"
-            onClick={() => {
-              setTextPromptOpen(true);
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '400px',
+            py: 6,
+          }}
+        >
+          <Box
+            sx={{
+              mb: 4,
+              p: 3,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              boxShadow: '0 8px 32px rgba(102, 126, 234, 0.3)',
             }}
           >
-            <JoinBoardIcon />
-          </IconButton>
-        </Tooltip>
-      </CardActions>
+            <ReceiptLongIcon
+              sx={{
+                fontSize: 80,
+                color: 'white',
+              }}
+            />
+          </Box>
+
+          <Typography
+            variant="h4"
+            sx={{
+              mb: 2,
+              fontWeight: 700,
+              color: 'white',
+              textAlign: 'center',
+            }}
+          >
+            Zero-Knowledge Invoice System
+          </Typography>
+
+          <Typography
+            variant="body1"
+            sx={{
+              mb: 5,
+              color: 'white',
+              textAlign: 'center',
+              maxWidth: '500px',
+            }}
+          >
+            Create secure, privacy-preserving invoices on the Midnight blockchain
+          </Typography>
+
+          <Button
+            data-testid="board-deploy-btn"
+            variant="contained"
+            size="large"
+            onClick={onCreate}
+            startIcon={<AddCircleOutlineIcon />}
+            sx={{
+              py: 2,
+              px: 6,
+              fontSize: '1.1rem',
+              fontWeight: 600,
+              borderRadius: '50px',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              boxShadow: '0 4px 20px rgba(102, 126, 234, 0.4)',
+              textTransform: 'none',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
+                boxShadow: '0 6px 30px rgba(102, 126, 234, 0.6)',
+                transform: 'translateY(-2px)',
+              },
+              '&:active': {
+                transform: 'translateY(0)',
+              },
+            }}
+          >
+            Create New Invoice Contract
+          </Button>
+        </Box>
+      </CardContent>
       <TextPromptDialog
         prompt="Enter contract address"
         isOpen={textPromptOpen}
@@ -79,7 +141,7 @@ export const EmptyCardContent: React.FC<Readonly<EmptyCardContentProps>> = ({
         }}
         onSubmit={(text) => {
           setTextPromptOpen(false);
-          onJoinBoardCallback(text);
+          onJoin(text);
         }}
       />
     </React.Fragment>

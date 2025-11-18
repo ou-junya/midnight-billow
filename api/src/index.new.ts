@@ -86,7 +86,7 @@ export class InvoiceAPI implements DeployedInvoiceAPI {
           try {
             invoiceData = JSON.parse(ledgerState.invoiceJson.value) as InvoiceData;
           } catch (e) {
-            logger?.error({ error: e }, 'Failed to parse invoice JSON');
+            logger?.error('Failed to parse invoice JSON', e);
           }
         }
 

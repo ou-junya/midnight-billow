@@ -1,8 +1,8 @@
 {
-  "name": "@midnight-ntwrk/example-bboard",
+  "name": "@midnight-ntwrk/midnight-billow",
   "version": "0.1.0",
-  "author": "IOG",
-  "license": "MIT",
+  "author": "Midnight Billow Team",
+  "license": "Apache-2.0",
   "private": true,
   "type": "module",
   "workspaces": {

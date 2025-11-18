@@ -1,4 +1,4 @@
-// This file is part of midnightntwrk/example-counter.
+// This file is part of Midnight Billow - ZK Invoice Payment System
 // Copyright (C) 2025 Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,20 +14,20 @@
 // limitations under the License.
 
 import { useContext } from 'react';
-import { DeployedBoardContext, type DeployedBoardAPIProvider } from '../contexts';
+import { DeployedInvoiceContext, type DeployedInvoiceAPIProvider } from '../contexts';
 
 /**
- * Retrieves the currently in-scope deployed boards provider.
+ * Retrieves the currently in-scope deployed invoices provider.
  *
- * @returns The currently in-scope {@link DeployedBBoardAPIProvider} implementation.
+ * @returns The currently in-scope {@link DeployedInvoiceAPIProvider} implementation.
  *
  * @internal
  */
-export const useDeployedBoardContext = (): DeployedBoardAPIProvider => {
-  const context = useContext(DeployedBoardContext);
+export const useDeployedInvoiceContext = (): DeployedInvoiceAPIProvider => {
+  const context = useContext(DeployedInvoiceContext);
 
   if (!context) {
-    throw new Error('A <DeployedBoardProvider /> is required.');
+    throw new Error('A <DeployedInvoiceProvider /> is required.');
   }
 
   return context;

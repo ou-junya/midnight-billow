@@ -1,4 +1,4 @@
-// This file is part of midnightntwrk/example-counter.
+// This file is part of Midnight Billow - ZK Invoice Payment System
 // Copyright (C) 2025 Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,28 +14,28 @@
 // limitations under the License.
 
 import React, { type PropsWithChildren, createContext } from 'react';
-import { type DeployedBoardAPIProvider, BrowserDeployedBoardManager } from './BrowserDeployedBoardManager';
+import { type DeployedInvoiceAPIProvider, BrowserDeployedInvoiceManager } from './BrowserDeployedBoardManager';
 import { type Logger } from 'pino';
 
 /**
- * Encapsulates a deployed boards provider as a context object.
+ * Encapsulates a deployed invoices provider as a context object.
  */
-export const DeployedBoardContext = createContext<DeployedBoardAPIProvider | undefined>(undefined);
+export const DeployedInvoiceContext = createContext<DeployedInvoiceAPIProvider | undefined>(undefined);
 
 /**
- * The props required by the {@link DeployedBoardProvider} component.
+ * The props required by the {@link DeployedInvoiceProvider} component.
  */
-export type DeployedBoardProviderProps = PropsWithChildren<{
+export type DeployedInvoiceProviderProps = PropsWithChildren<{
   /** The `pino` logger to use. */
   logger: Logger;
 }>;
 
 /**
- * A React component that sets a new {@link BrowserDeployedBoardManager} object as the currently
- * in-scope deployed board provider.
+ * A React component that sets a new {@link BrowserDeployedInvoiceManager} object as the currently
+ * in-scope deployed invoice provider.
  */
-export const DeployedBoardProvider: React.FC<Readonly<DeployedBoardProviderProps>> = ({ logger, children }) => (
-  <DeployedBoardContext.Provider value={new BrowserDeployedBoardManager(logger)}>
+export const DeployedInvoiceProvider: React.FC<Readonly<DeployedInvoiceProviderProps>> = ({ logger, children }) => (
+  <DeployedInvoiceContext.Provider value={new BrowserDeployedInvoiceManager(logger)}>
     {children}
-  </DeployedBoardContext.Provider>
+  </DeployedInvoiceContext.Provider>
 );

@@ -1,0 +1,92 @@
+// This file is part of Midnight Billow - ZK Invoice Payment System
+// Copyright (C) 2025 Midnight Foundation
+// SPDX-License-Identifier: Apache-2.0
+// Licensed under the Apache License, Version 2.0 (the "License");
+// You may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+pragma language_version >= 0.16 && <= 0.18;
+
+import CompactStandardLibrary;
+
+export enum State {
+  EMPTY,      // インボイス無し
+  ISSUED,     // 発行済み（未払い）
+  PAID        // 支払い済み
+}
+
+export ledger state: State;
+
+export ledger sequence: Counter;
+
+export ledger buyerPk: Bytes<32>;              // ZKでしかわからない購入者の「公開鍵」
+
+export ledger amount: Field;                   // 支払うべき金額
+
+export ledger invoiceJson: Maybe<Opaque<"string">>;   // インボイスJSON（最低限）
+
+constructor() {
+  state = State.EMPTY;
+  invoiceJson = none<Opaque<"string">>();
+  sequence.increment(1);
+  amount = 0;
+}
+
+witness localSecretKey(): Bytes<32>;
+
+// インボイス発行（公開）
+export circuit issueInvoice(
+  invoiceAmount: Field,
+  invoice: Opaque<"string">
+): [] {
+  assert(state == State.EMPTY || state == State.PAID, "Invoice already issued");
+
+  // 新しい sequence を作る（新規インボイス）
+  sequence.increment(1);
+
+  // ローカルの秘密キーから「このインボイスの支払人キー」を生成
+  const sk = localSecretKey();
+  const pk = buyerKey(sk, sequence as Field as Bytes<32>);
+
+  buyerPk = disclose(pk);
+  amount = disclose(invoiceAmount);
+  invoiceJson = disclose(some<Opaque<"string">>(invoice));
+  state = State.ISSUED;
+}
+
+// ZK付き支払い（ここがZKの本体）
+export circuit payInvoice(): [] {
+  assert(state == State.ISSUED, "No active invoice to pay");
+
+  // ここが ZK:
+  // localSecretKey() は witness でのみ値を持つ秘密入力
+  const sk = localSecretKey();
+  const pk = buyerKey(sk, sequence as Field as Bytes<32>);
+
+  // この assert が "ZKでの秘密計算結果とオンチェーンの buyerPk を比較" するところ
+  assert(buyerPk == pk, "You are not the buyer for this invoice");
+
+  state = State.PAID;
+}
+
+// インボイス情報をクリアして次のインボイスを発行可能にする
+export circuit resetInvoice(): [] {
+  assert(state == State.PAID, "Can only reset a paid invoice");
+  
+  state = State.EMPTY;
+  invoiceJson = none<Opaque<"string">>();
+  amount = 0;
+}
+
+// 購入者キー生成関数（bboard の publicKey と同じ構造）
+export circuit buyerKey(sk: Bytes<32>, sequence: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<3, Bytes<32>>>([pad(32, "invoice:buyer:"), sequence, sk]);
+}
